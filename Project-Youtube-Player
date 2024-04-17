@@ -1,0 +1,98 @@
+from googleapiclient.discovery import build
+from pytube import YouTube
+import time
+import vlc
+
+# Replace 'YOUR_API_KEY' with your actual API key
+api_key = 'AIzaSyBgcVfxcO2D5_WodtiR_nm0wPMpTPCMgU4'
+youtube = build('youtube', 'v3', developerKey=api_key)
+
+def search_videos(query):
+    search_response = youtube.search().list(
+        q=query,
+        part='id,snippet',
+        maxResults=5,
+        type = 'audio'
+        
+    ).execute()
+
+    videos = []
+    for search_result in search_response.get('items', []):
+        if search_result['id']['kind'] == 'youtube#video':
+            video_id = search_result['id']['videoId']
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            videos.append({
+                'title': search_result['snippet']['title'],
+                'video_id': video_id,
+                'video_url': video_url,
+            })
+    return videos
+
+def play_first_video(query):
+    results = search_videos(query)
+    if results:
+        first_video_url = results[0]['video_url']
+        print(first_video_url)
+        
+    play_audio_stream(get_stream_url(first_video_url))
+        
+
+#Get Stream URL
+
+def get_stream_url(youtube_url):
+    try:
+        yt = YouTube(youtube_url)
+        
+        video = yt.streams.get_highest_resolution()
+        return video.url
+    
+    except Exception as e:
+        
+        print("Error Occurred while fetching stream url : ",str(e))
+
+
+#Play Audio
+
+def play_audio_stream(stream_url):
+    
+    #Creating vlc instance
+    instance = vlc.Instance('--no-video')
+    #instance = vlc.Instance()
+    
+    #Creating vlc media player
+    player = instance.media_player_new()
+    
+    #Creating vlc media
+    media = instance.media_new(stream_url)
+    
+    #Setting media to player
+    player.set_media(media)
+    
+    #Start playing
+    player.play()
+    print("Playing...")
+
+    # Give some time for VLC to start playing
+    time.sleep(1)
+
+    # Wait for playback to finish
+    while player.is_playing():
+        time.sleep(1)
+        user_input = input("Enter 's' to stop and exit: ")
+        if user_input.lower() == 's':
+            player.stop()
+            break
+            
+
+    # Release the player and instance
+    player.release()
+    instance.release()
+    main()
+    
+    
+
+def main():
+    query = input("Enter your search query: ")
+    play_first_video(query)
+
+main()
